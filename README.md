@@ -1,2 +1,2 @@
 # StravaClubForWork
-Statistics and incentives for a company based club
+Statistics and incentives for a company based Strava-club
