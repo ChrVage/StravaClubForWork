@@ -7,6 +7,8 @@ from datetime import datetime
 # Todo: Create a list with all activities, store as file and append to it.
 # Create New Excel-file pr week.
 # Finn første match og erstatt resten.
+# Dersom mandag, og det ikke finnes Ukestart - lag en og kjør på nytt før lagring.
+# Kjør scriptet på Atea Strava Admin og legg inn en skjult aktivitet med dato hver midnatt, for å sette dato på resten.
 
 
 auth_url = "https://www.strava.com/oauth/token"
@@ -41,7 +43,11 @@ readpage = 1
 pagesize = 50
 activities = 0
 
+# First: Get data from Strava, lag ID kolonne bestående av navn#sekunder aktivitet#distanse (Det som ikke endrer seg.).
 
+# Bruk hele det siste uttaket, og legg på alt man hadde fra før, som ikke har en ID som finnes i det opprinnelige.
+
+# Så: Lag komplett Excel-ark med dato??? i kolonne 1 for rapportering.
 
 while loop:
     param = {'per_page': pagesize, 'page': readpage}
@@ -78,6 +84,6 @@ print("activities found: %i" % activities)
 
 TheData = list(zip(fullname,activityname,activitytype,activityduration,activitydistance))
 
-# Write data to an Excel spreadsheet.
+# Write data to an Excel spreadsheet pr week
 df = pd.DataFrame(data=TheData, columns=allColumns)
 df.to_excel(FileName, index=False)
