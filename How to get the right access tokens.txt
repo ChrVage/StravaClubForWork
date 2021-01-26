@@ -1,0 +1,21 @@
+
+
+Paste the below code in a browser, hit enter then grab the "code" part from the resulting url. 
+a)
+ https://www.strava.com/oauth/authorize?client_id=60365&redirect_uri=http://localhost&response_type=code&scope=activity:read_all
+b) http://www.strava.com/oauth/authorize?client_id=60365&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=profile:read_all,activity:read_all
+
+ 
+Exchange authorization code for access token & refresh token (Post i Postman):
+
+https://www.strava.com/oauth/token?client_id=60365&client_secret=d6eaed2e3d1f1d8a154044d5984769536dc06674&code=4b7adb21eabe7b64fc1f69b585efd5f7f877ed77&grant_type=authorization_code
+
+ 
+
+Test by viewing your activities using the access token just received (Get in postman)
+
+https://www.strava.com/api/v3/athlete/activities?access_token=f96902567761c861c43d1666584a05caf9290054
+
+Use refresh token to get new access tokens (Post in postman)
+
+https://www.strava.com/oauth/token?client_id=60365&client_secret=d6eaed2e3d1f1d8a154044d5984769536dc06674 &refresh_token=295e4ffa5db843b8482fcdbd2ca9a5ae2c1a24a7&grant_type=refresh_token

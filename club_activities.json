@@ -1,4 +1,5 @@
-{'resource_state': 2, 'athlete': {'resource_state': 2, 'firstname': 'Bjørnar', 'lastname': 'S.'}, 'name': 'Solbolletur', 'distance': 20009.9, 'moving_time': 6451, 'elapsed_time': 6664, 'total_elevation_gain': 118.0, 'type': 'Run', 'workout_type': 0}, 
+{'resource_state': 2, 'athlete':
+{'resource_state': 2, 'firstname': 'Bjørnar', 'lastname': 'S.'}, 'name': 'Solbolletur', 'distance': 20009.9, 'moving_time': 6451, 'elapsed_time': 6664, 'total_elevation_gain': 118.0, 'type': 'Run', 'workout_type': 0}, 
 {'resource_state': 2, 'athlete': {'resource_state': 2, 'firstname': 'Thomas Rene', 'lastname': 'H.'}, 'name': 'Sørsetra t/r', 'distance': 13437.8, 'moving_time': 4641, 'elapsed_time': 4641, 'total_elevation_gain': 271.0, 'type': 'NordicSki'}, 
 {'resource_state': 2, 'athlete': {'resource_state': 2, 'firstname': 'Mathilde Hope', 'lastname': 'N.'}, 'name': 'Morning Walk', 'distance': 5544.4, 'moving_time': 4004, 'elapsed_time': 4193, 'total_elevation_gain': 65.8, 'type': 'Walk'}, 
 {'resource_state': 2, 'athlete': {'resource_state': 2, 'firstname': 'Børge', 'lastname': 'H.'}, 'name': 'Mølla 9*3 min 7,5% p60 og 90', 'distance': 9212.0, 'moving_time': 3602, 'elapsed_time': 3602, 'total_elevation_gain': 0, 'type': 'Run', 'workout_type': 0},
