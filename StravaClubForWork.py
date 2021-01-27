@@ -4,15 +4,29 @@ import pandas as pd
 import json
 from datetime import datetime
 
-# Todo: Create a list with all activities, store as file and append to it.
-# Create New Excel-file pr week.
-# Finn første match og erstatt resten.
-# Dersom mandag, og det ikke finnes Ukestart - lag en og kjør på nytt før lagring.
-# Kjør scriptet på Atea Strava Admin og legg inn en skjult aktivitet med dato hver midnatt, for å sette dato på resten.
+# Verifiser at å legge inn et par aktiviteter tilbake i tid for å se om de dukker opp før noe som allerede er i listen
+# Del opp i funksjoner
+# Les inn Config fil med minste mulige data, men data om admin-bruker-token, siste dato 
+# Legg inn alle datoer etter den som er lagret i config-fil som skjult aktivitet på Atea Strava Admin med dato hver midnatt. yyyy.mm.dd#StravaClubForWork_Date
+# Les ut ny fil fra API, lag ID kolonne og dato kolonne
+#  Lag ID kolonne bestående av navn#sekunder aktivitet#distanse (Det som ikke endrer seg.).
+#  Legg inn dagens dato, til aktitet fra Atea Strava Admin markerer datoskillet til dagen før. (Det kan finnes dager uten aktivitet)
+# Fjern Atea Strava Admin - aktiviteter.
+# Les inn eksisterende fil som inneholder alt fra i år.
+# Bruk filen som nettopp er laget som utgangspunkt for ny fil
+# Fjern de første linjene i eksisterende fil (Antall = maks det som finnes i eksisterende datasett +?:Hvor mange aktiviteter kan være slettet eller lagt til?).
+# Lagre ny fil med alle aktiviteter (Sjekk at PowerBI klarer å hente json dataene herfra - eventuelt lagre som .csv (test komma i aktivitetsnavn?).)
+# Sjekk mot medlemslisten hvem som har like navn hver mandag. 
+# Lag oversikt over antall medlemmer i klubben.
+# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke.
+#   * Fjern de som har kun en aktivitet, og de som ikke har navnebror og har mer enn 4 aktiviteter.
+#   * Fjern aktiviteter som er mindre enn 900 sekunder
+#   * Gi alle aktiviteter random nummer, laveste vinner.
 
 
 auth_url = "https://www.strava.com/oauth/token"
 activities_url = "https://www.strava.com/api/v3/clubs/10971/activities"
+members_url = ""
 
 payload = {
     'client_id': "60365",
@@ -42,12 +56,6 @@ loop = True
 readpage = 1
 pagesize = 50
 activities = 0
-
-# First: Get data from Strava, lag ID kolonne bestående av navn#sekunder aktivitet#distanse (Det som ikke endrer seg.).
-
-# Bruk hele det siste uttaket, og legg på alt man hadde fra før, som ikke har en ID som finnes i det opprinnelige.
-
-# Så: Lag komplett Excel-ark med dato??? i kolonne 1 for rapportering.
 
 while loop:
     param = {'per_page': pagesize, 'page': readpage}
