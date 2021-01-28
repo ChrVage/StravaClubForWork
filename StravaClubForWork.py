@@ -2,16 +2,19 @@ import requests
 import urllib3 #trengs denne?
 import pandas as pd 
 import json
+import errno
 from datetime import datetime
 
-# Legg inn alle datoer etter den som er lagret i config-fil som skjult aktivitet på Atea Strava Admin med dato hver midnatt. yyyy.mm.dd#StravaClubForWork_Date
-# Fjern Atea Strava Admin - aktiviteter.
-# Les inn eksisterende fil som inneholder alt fra i år.
-# Bruk filen som nettopp er laget som utgangspunkt for ny fil
-# Fjern de første linjene i eksisterende fil (Antall = maks det som finnes i eksisterende datasett +?:Hvor mange aktiviteter kan være slettet eller lagt til?).
-# Lagre ny fil med alle aktiviteter (Sjekk at PowerBI klarer å hente json dataene herfra - eventuelt lagre som .csv (test komma i aktivitetsnavn?).)
+# Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil.
+# Les inn eksisterende fil som inneholder alt fra i år
+# Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
+# Legg til linjer på slutten av eksisterende fil.
+# Lagre ny fil med alle aktiviteter
+
 # Sjekk mot medlemslisten hvem som har like navn hver mandag. 
-# Lag oversikt over antall medlemmer i klubben.
+# Lag fil med run-statistics
+#   Lag oversikt over antall medlemmer i klubben
+#   Hvor mange aktiviteter som var nye side sist
 # Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke.
 #   * Fjern de som har kun en aktivitet, og de som ikke har navnebror og har mer enn 4 aktiviteter.
 #   * Fjern aktiviteter som er mindre enn 900 sekunder
@@ -33,20 +36,8 @@ def authenticate(client_id,client_secret,refresh_token):
 def create_dates_by_clubadmin(date):
     pass
 
-def get_new_activities(access_token,club_id):
-    # create dictionary of user activities
-    activities = pd.DataFrame(
-        columns = [
-                "Athlete",
-                "Name",
-                "Type",
-                "Duration",
-                "Distance",
-                "Date",
-                "id"
-        ]
-    )
-
+def get_new_activities(access_token,club_id,columns):
+    
     loop = True
 
     readpage = 1
@@ -55,6 +46,8 @@ def get_new_activities(access_token,club_id):
     activities_url = "https://www.strava.com/api/v3/clubs/%s/activities" % club_id
     activity_row = 0
     activity_date = datetime.now()
+    activities = pd.DataFrame(columns)
+
     while loop:
         header = {'Authorization': 'Bearer ' + access_token}
         param  = {'per_page': pagesize, 'page': readpage}
@@ -98,6 +91,22 @@ def get_new_activities(access_token,club_id):
     print("activities found: %i" % activity_count)
     return activities
 
+def read_activities(file_name,columns):
+    try:
+        activities = pd.read_excel(file_name)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            print('Create file')
+            activities = pd.DataFrame(columns)
+            activities.to_excel(file_name) 
+        else:
+            print('Oops')
+            raise
+    return activities
+
+def add_activities(activities,new_activities):
+    pass
+
 def main():
     # Read config.json file
     with open("config.json", "r") as jsonfile:
@@ -108,7 +117,23 @@ def main():
     date = config['last_date']
     print('Date:%s' % date)
     # date = create_dates_by_clubadmin(date)
-    new_activities = get_new_activities(access_token,config["club_id"])
+
+    # create 2 dictionaries of user activities
+    columns = [ "Athlete",
+                "Name",
+                "Type",
+                "Duration",
+                "Distance",
+                "Date",
+                "id"
+        ]
+
+
+    new_activities = get_new_activities(access_token,config["club_id"],columns)
+
+    activities = read_activities(config["data_file"],columns)
+    
+    all_activities = add_activities(activities,new_activities)
 
     i = len(new_activities.index)
     print("len new_activities: %s" % i)
