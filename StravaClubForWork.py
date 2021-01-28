@@ -1,43 +1,45 @@
 import requests
 import urllib3 #trengs denne?
-import pandas as pd 
+import pandas as pd
 import json
 import errno
 from datetime import datetime
 
-# Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil.
+# Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil
 # Les inn eksisterende fil som inneholder alt fra i år
 # Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
-# Legg til linjer på slutten av eksisterende fil.
+# Legg til linjer på slutten av eksisterende fil
 # Lagre ny fil med alle aktiviteter
 
-# Sjekk mot medlemslisten hvem som har like navn hver mandag. 
+# Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
 #   Lag oversikt over antall medlemmer i klubben
 #   Hvor mange aktiviteter som var nye side sist
-# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke.
-#   * Fjern de som har kun en aktivitet, og de som ikke har navnebror og har mer enn 4 aktiviteter.
+# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
+#   * Fjern de som har kun en aktivitet, og de som ikke har navnebror og har mer enn 4 aktiviteter
 #   * Fjern aktiviteter som er mindre enn 900 sekunder
-#   * Gi alle aktiviteter random nummer, laveste vinner.
+#   * Gi alle aktiviteter random nummer, laveste vinner
 
 def authenticate(client_id,client_secret,refresh_token):
     payload = {
-    'client_id': client_id,
-        'client_secret': client_secret, 
+        'client_id': client_id,
+        'client_secret': client_secret,
         'refresh_token': refresh_token,
         'grant_type': "refresh_token",
-       'f':'json'
+        'f':'json'
     }
 
     auth_url = "https://www.strava.com/oauth/token"
 
     return requests.post(auth_url,data=payload, verify=False).json()['access_token']
 
-def create_dates_by_clubadmin(date):
-    pass
-
-def get_new_activities(access_token,club_id,columns):
+def remove_duplicate_activities(activities):
+    for i in reversed(activities.index):
+        print("%i: %s" % (i, activities.at[i,'id']))
     
+    return activities
+
+def get_new_activities_from_strava(access_token,club_id,columns):
     loop = True
 
     readpage = 1
@@ -46,7 +48,7 @@ def get_new_activities(access_token,club_id,columns):
     activities_url = "https://www.strava.com/api/v3/clubs/%s/activities" % club_id
     activity_row = 0
     activity_date = datetime.now()
-    activities = pd.DataFrame(columns)
+    activities = pd.DataFrame(columns=columns)
 
     while loop:
         header = {'Authorization': 'Bearer ' + access_token}
@@ -58,7 +60,6 @@ def get_new_activities(access_token,club_id,columns):
         activity_count = activity_count + len(data)
     
         for line in data :
-            
             # Check for new date in activities
             taglist = line['name'].split("#")
             if len(taglist)==2:
@@ -75,13 +76,12 @@ def get_new_activities(access_token,club_id,columns):
             activities.at[activity_row, 'id']       = "%s#%s#%s#%s" % (activities.at[activity_row, 'Athlete'], 
                                                                        activities.at[activity_row, 'Duration'], 
                                                                        activities.at[activity_row, 'Distance'],
-                                                                       activity_date.strftime("%d"))
+                                                                       activities.at[activity_row, 'Date'])
 
             activity_row = activity_row + 1
  
-
         print("Page: %i, len(data): %d " % (readpage-1,len(data)))
-        # https://stackoverflow.com/questions/17071871/how-to-select-rows-from-a-dataframe-based-on-column-values
+        
         if activity_count>300: 
             loop = False
 
@@ -91,21 +91,16 @@ def get_new_activities(access_token,club_id,columns):
     print("activities found: %i" % activity_count)
     return activities
 
-def read_activities(file_name,columns):
+def read_activities_from_file(file_name):
     try:
         activities = pd.read_excel(file_name)
     except OSError as e:
         if e.errno == errno.ENOENT:
             print('Create file')
-            activities = pd.DataFrame(columns)
-            activities.to_excel(file_name) 
         else:
             print('Oops')
             raise
     return activities
-
-def add_activities(activities,new_activities):
-    pass
 
 def main():
     # Read config.json file
@@ -119,31 +114,20 @@ def main():
     # date = create_dates_by_clubadmin(date)
 
     # create 2 dictionaries of user activities
-    columns = [ "Athlete",
-                "Name",
-                "Type",
-                "Duration",
-                "Distance",
-                "Date",
-                "id"
-        ]
-
-
-    new_activities = get_new_activities(access_token,config["club_id"],columns)
-
-    activities = read_activities(config["data_file"],columns)
+    columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
-    all_activities = add_activities(activities,new_activities)
+    new_activities = get_new_activities_from_strava(access_token,config["club_id"],columns)
+    activities = read_activities_from_file(config["data_file"])
 
-    i = len(new_activities.index)
-    print("len new_activities: %s" % i)
-    print("Oldest activity(%d): %s %s %s" % (i-1,new_activities.at[i-1, 'Athlete'],new_activities.at[i-1, 'Name'],new_activities.at[i-1, 'Date']))
+    all_activities = activities.append(new_activities.iloc[::-1],sort=False) 
+    all_activities.reset_index(drop=True)
+    # fin_activities = remove_duplicate_activities(all_activities)
 
     # Write data to an Excel spreadsheet pr week
     FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
     
-    df = pd.DataFrame(new_activities)
-    df.to_excel(FileName, index=False)
+    new_activities.to_excel(FileName, index=False)
+    all_activities.to_excel(config["data_file"], index=False)
     
     with open("config.json", "w") as jsonfile:
         myJSON = json.dump(config, jsonfile, indent=2) # Writing to the file
