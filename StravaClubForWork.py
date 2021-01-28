@@ -1,14 +1,10 @@
 import requests
-import urllib3
+import urllib3 #trengs denne?
 import pandas as pd 
 import json
 from datetime import datetime
 
-# Les inn Config fil med minste mulige data, men client_id, client_secret, refresh_token, siste dato 
 # Legg inn alle datoer etter den som er lagret i config-fil som skjult aktivitet på Atea Strava Admin med dato hver midnatt. yyyy.mm.dd#StravaClubForWork_Date
-# Les ut ny fil fra API, lag ID kolonne og dato kolonne
-#  Lag ID kolonne bestående av navn#sekunder aktivitet#distanse (Det som ikke endrer seg.).
-#  Legg inn dagens dato, til aktitet fra Atea Strava Admin markerer datoskillet til dagen før. (Det kan finnes dager uten aktivitet)
 # Fjern Atea Strava Admin - aktiviteter.
 # Les inn eksisterende fil som inneholder alt fra i år.
 # Bruk filen som nettopp er laget som utgangspunkt for ny fil
@@ -58,6 +54,7 @@ def get_new_activities(access_token,club_id):
     activity_count = 0
     activities_url = "https://www.strava.com/api/v3/clubs/%s/activities" % club_id
     activity_row = 0
+    activity_date = datetime.now()
     while loop:
         header = {'Authorization': 'Bearer ' + access_token}
         param  = {'per_page': pagesize, 'page': readpage}
@@ -68,16 +65,28 @@ def get_new_activities(access_token,club_id):
         activity_count = activity_count + len(data)
     
         for line in data :
+            
+            # Check for new date in activities
+            taglist = line['name'].split("#")
+            if len(taglist)==2:
+                if taglist[1] == "AteaClubForWork_Date":
+                    activity_date = datetime.strptime(taglist[0], "%Y-%m-%d")
+                    continue
+
             activities.at[activity_row, 'Athlete']  = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
             activities.at[activity_row, 'Name']     = line['name']
             activities.at[activity_row, 'Type']     = line['type']
             activities.at[activity_row, 'Duration'] = line['elapsed_time']
             activities.at[activity_row, 'Distance'] = line['distance']
-            activities.at[activity_row, 'Date']     = datetime.now().strftime("%Y.%m.%d")
-            activities.at[activity_row, 'id']       = "%s#%s#%s" % (activities.at[activity_row, 'Athlete'], activities.at[activity_row, 'Duration'], activities.at[activity_row, 'Distance'])
+            activities.at[activity_row, 'Date']     = activity_date.strftime("%Y-%m-%d")
+            activities.at[activity_row, 'id']       = "%s#%s#%s#%s" % (activities.at[activity_row, 'Athlete'], 
+                                                                       activities.at[activity_row, 'Duration'], 
+                                                                       activities.at[activity_row, 'Distance'],
+                                                                       activity_date.strftime("%d"))
 
             activity_row = activity_row + 1
  
+
         print("Page: %i, len(data): %d " % (readpage-1,len(data)))
         # https://stackoverflow.com/questions/17071871/how-to-select-rows-from-a-dataframe-based-on-column-values
         if activity_count>300: 
@@ -99,12 +108,16 @@ def main():
     date = config['last_date']
     print('Date:%s' % date)
     # date = create_dates_by_clubadmin(date)
-    activities = get_new_activities(access_token,config["club_id"])
+    new_activities = get_new_activities(access_token,config["club_id"])
+
+    i = len(new_activities.index)
+    print("len new_activities: %s" % i)
+    print("Oldest activity(%d): %s %s %s" % (i-1,new_activities.at[i-1, 'Athlete'],new_activities.at[i-1, 'Name'],new_activities.at[i-1, 'Date']))
 
     # Write data to an Excel spreadsheet pr week
     FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
     
-    df = pd.DataFrame(activities)
+    df = pd.DataFrame(new_activities)
     df.to_excel(FileName, index=False)
     
     with open("config.json", "w") as jsonfile:
