@@ -5,7 +5,7 @@ import json
 import errno
 from datetime import datetime
 
-# Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil
+# Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil (eller kanskje faktiske innlagte dato?)
 # Les inn eksisterende fil som inneholder alt fra i år
 # Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
 # Legg til linjer på slutten av eksisterende fil
@@ -128,6 +128,7 @@ def main():
     
     new_activities.to_excel(FileName, index=False)
     all_activities.to_excel(config["data_file"], index=False)
+    
     
     with open("config.json", "w") as jsonfile:
         myJSON = json.dump(config, jsonfile, indent=2) # Writing to the file
