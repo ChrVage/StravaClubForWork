@@ -3,7 +3,5 @@
   "client_id": "60746",
   "client_secret": "1e7036305938242cc7e10cb6f65687c433cdf284",
   "refresh_token": "95db421b90346eda0de53c49b09a6fb16b169393",
-  "last_date": "2021-01-27",
-  "data_file": "ClubData.pkl",
-  "stat_file": "ClubStatistics.xlsx"
+  "data_file": "ClubData.pkl"
 }
