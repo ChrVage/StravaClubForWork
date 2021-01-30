@@ -33,13 +33,8 @@ def authenticate(client_id,client_secret,refresh_token):
 
     return requests.post(auth_url,data=payload, verify=False).json()['access_token']
 
-def remove_duplicate_activities(activities):
-    for i in reversed(activities.index):
-        print("%i: %s" % (i, activities.at[i,'id']))
-    
-    return activities
 
-def get_new_activities_from_strava(access_token,club_id,columns):
+def get_new_activities_from_strava(access_token,club_id,activities):
     loop = True
 
     readpage = 1
@@ -48,7 +43,7 @@ def get_new_activities_from_strava(access_token,club_id,columns):
     activities_url = "https://www.strava.com/api/v3/clubs/%s/activities" % club_id
     activity_row = 0
     activity_date = datetime.now()
-    activities = pd.DataFrame(columns=columns)
+    
 
     while loop:
         header = {'Authorization': 'Bearer ' + access_token}
@@ -91,16 +86,29 @@ def get_new_activities_from_strava(access_token,club_id,columns):
     print("activities found: %i" % activity_count)
     return activities
 
-def read_activities_from_file(file_name):
+def read_activities_from_file(file_name,activities):
     try:
-        activities = pd.read_excel(file_name)
+        activities = pd.read_pickle(file_name)
+        print('Opens file: %s' % file_name)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            print('Create file')
+            activities.to_pickle(file_name)
+            print('Creates file: %s' % file_name)
         else:
             print('Oops')
             raise
+
     return activities
+
+def remove_duplicate_activities(all_activities,new_activities):
+    
+    for index, row in new_activities.iterrows():
+        print("index: %s" % index )
+        # all_activities.drop(index=index)
+    
+    all_activities = all_activities.append(new_activities.iloc[::-1])
+    
+    return all_activities
 
 def main():
     # Read config.json file
@@ -113,23 +121,31 @@ def main():
     print('Date:%s' % date)
     # date = create_dates_by_clubadmin(date)
 
-    # create 2 dictionaries of user activities
+
+    # Create dataframe and fill it with new activities from Strava
     columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
-    new_activities = get_new_activities_from_strava(access_token,config["club_id"],columns)
-    activities = read_activities_from_file(config["data_file"])
+    new_activities = pd.DataFrame(columns=columns)
+    new_activities = get_new_activities_from_strava(access_token, config["club_id"], new_activities)
+    new_activities.set_index('id')
 
-    all_activities = activities.append(new_activities.iloc[::-1],sort=False) 
-    all_activities.reset_index(drop=True)
-    # fin_activities = remove_duplicate_activities(all_activities)
+    all_activities = pd.DataFrame(columns=columns)
+    all_activities = read_activities_from_file(config["data_file"], all_activities)
+
+    fin_activities = pd.DataFrame(columns=columns)
+    fin_activities = remove_duplicate_activities(all_activities, new_activities)
 
     # Write data to an Excel spreadsheet pr week
     FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    FileName2 = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    FileName3 = 'FinData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
     
     new_activities.to_excel(FileName, index=False)
-    all_activities.to_excel(config["data_file"], index=False)
+    all_activities.to_pickle(config["data_file"])
+    all_activities.to_excel(FileName2)
+    fin_activities.to_excel(FileName3)
     
-    
+
     with open("config.json", "w") as jsonfile:
         myJSON = json.dump(config, jsonfile, indent=2) # Writing to the file
         jsonfile.close()
