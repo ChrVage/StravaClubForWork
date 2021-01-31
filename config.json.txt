@@ -1,3 +1,4 @@
+[Remove this line, and remove ".txt" from the filename of this file.
 {
   "club_id": "[Insert the ID of your club - 5 digits]",
   "client_id": "[Insert your client_id - 5 digits]",
