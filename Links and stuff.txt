@@ -1,0 +1,30 @@
+An example using google sheets and authentication:
+https://medium.com/python-in-plain-english/how-to-automate-a-club-challenge-with-strava-and-google-sheets-for-dummies-3c9ebc018781
+
+An intro on youtube:
+https://www.youtube.com/watch?v=2FPNb1XECGs
+
+
+A text to use with Strava.com and the Postman application to get the right tokens: 
+(Full description is found in links above).
+
+Paste the below code in a browser, hit enter then grab the "code" part from the resulting url. 
+(The page displayed may look like an error)
+http://www.strava.com/oauth/authorize?client_id=[Fill_5_digits_here]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=profile:read_all,activity:read_all
+
+
+Exchange the 40 character code from the resulting url in the above step for access token & refresh token
+Post this in Postman:
+https://www.strava.com/oauth/token?client_id=[Fill_5_digits_here]&client_secret=[Fill_40_char_code_here]&code=[Fill_40_char_code_here]&grant_type=authorization_code
+
+
+Now you have what you need. 
+Continue if you want to test:
+
+View your activities using the access token just received.
+Get with this URL in Postman:
+https://www.strava.com/api/v3/athlete/activities?access_token=[Fill_access_token_here]
+
+Use refresh token to get new access tokens.
+Post with this URL in Postman:
+https://www.strava.com/oauth/token?client_id=[Fill_client_id]&client_secret=[Fill_client_secret] &refresh_token=[Fill_refresh_token]&grant_type=refresh_token

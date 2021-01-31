@@ -131,20 +131,22 @@ def main():
     new_activities.set_index('id')
 
     # Add the new activites to the data already stored, but skip existing activities
-    fin_activities = pd.DataFrame(columns=columns)
-    fin_activities = remove_duplicate_activities(all_activities, new_activities)
+    # fin_activities = pd.DataFrame(columns=columns)
+    # fin_activities = remove_duplicate_activities(all_activities, new_activities)
 
-    # Write the new activities to an Excel file
-    FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    new_activities.to_excel(FileName, index=False)
+    # Debug: Write the new activities to an Excel file
+    # FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    # new_activities.to_excel(FileName, index=False)
 
-    # Write the old, stored activities to an Excel file
-    FileName = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    all_activities.to_excel(FileName)
+    # Debug: Write the old, stored activities to an Excel file
+    # FileName = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    # all_activities.to_excel(FileName)
 
-    # Write the new ant the old activities to an Excel file, and to the pickle file for store for next run
+    # Write the new and the old activities to an Excel file
     FileName = 'FinData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
     fin_activities.to_excel(FileName)
+
+    # Debug: Write the new and the old activities to the pickle file for store for next run
     fin_activities.to_pickle("ClubData.pkl")
 
 # Run the main() function only when this file is called as main.
