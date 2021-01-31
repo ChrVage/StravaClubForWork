@@ -1,12 +1,10 @@
-# StravaClubForWork
-Statistics and incentives for a company based Strava-club
+# StravaClubStats
+Collecting all activities from a Strava Club
 
-Planned
-* Be able to find all activities for last week and make a draw
-
-
-Ideas
-* Create an Atea - user
-* Give kudos to all counting activities
-* Set KPIs
-    * Gather statistics for weeks and months (or raw data)
+Data:
+- Athlete name (first letter in last name only)
+- Activity name
+- Type of workout
+- Duration (seconds)
+- Distance (meters)
+- Activity date
