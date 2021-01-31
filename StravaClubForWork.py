@@ -5,11 +5,13 @@ import json
 import errno
 from datetime import datetime
 
+# Dette må gjøres før programmet når v1.0:
+
+# Rydd config.json og oppdater Readme
+
 # Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
 
-
 # Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil (eller kanskje faktiske innlagte dato?)
-
 
 # Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
@@ -73,7 +75,7 @@ def get_new_activities_from_strava(access_token,club_id,activities):
             # Check for new date in activities
             taglist = line['name'].split("#")
             if len(taglist)==2:
-                if taglist[1] == "AteaClubForWork_Date":
+                if taglist[1] == "AteaClubStats_Date":
                     activity_date = datetime.strptime(taglist[0], "%Y-%m-%d")
                     continue
 
@@ -132,20 +134,19 @@ def main():
     fin_activities = pd.DataFrame(columns=columns)
     fin_activities = remove_duplicate_activities(all_activities, new_activities)
 
-    # Write all data to files
+    # Write the new activities to an Excel file
     FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    FileName2 = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    FileName3 = 'FinData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    
     new_activities.to_excel(FileName, index=False)
-    all_activities.to_excel(FileName2)
-    fin_activities.to_excel(FileName3)
-    fin_activities.to_pickle(config["data_file"])
 
+    # Write the old, stored activities to an Excel file
+    FileName = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    all_activities.to_excel(FileName)
 
-    # with open("config.json", "w") as jsonfile:
-    #     myJSON = json.dump(config, jsonfile, indent=2) # Writing to the file
-    #     jsonfile.close()
+    # Write the new ant the old activities to an Excel file, and to the pickle file for store for next run
+    FileName = 'FinData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    fin_activities.to_excel(FileName)
+    fin_activities.to_pickle("ClubData.pkl")
 
+# Run the main() function only when this file is called as main.
 if __name__ == "__main__":
     main()
