@@ -4,24 +4,30 @@ import pandas as pd
 import json
 import errno
 from datetime import datetime
+from datetime import timedelta
 
 # Dette må gjøres før programmet når v1.0:
 
-# Rydd config.json og oppdater Readme
+# Legg opp til at config inneholder flere tokens, les fra alle (Alle må følge ASA)
+
+# Legge inn info om hvem som har lest aktiviteten.
+# Sjekk om noen har id som ikke andre har.
+
+# Les ut med access token fra både CV og ASA - for å se forskjeller... Dette i test-kode
 
 # Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
 
 # Legg inn manuelle aktiviteter i Atea Strava Admin etter dato i config.json fil (eller kanskje faktiske innlagte dato?)
+
+# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
+#   * Nummerer aktivitetene som er mer enn 900 sekunder pr medlem
+#   * Gi alle aktiviteter med nummer>1 og <5 random nummer, laveste vinner (Manuell sjekk om en aktivitet har fått 2 pga navnebror)
 
 # Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
 #   Lag oversikt over antall medlemmer i klubben
 #   Hvor mange aktiviteter som var nye side sist
 
-# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
-#   * Fjern de som har kun en aktivitet, og de som ikke har navnebror og har mer enn 4 aktiviteter
-#   * Fjern aktiviteter som er mindre enn 900 sekunder
-#   * Gi alle aktiviteter random nummer, laveste vinner
 
 def authenticate(client_id,client_secret,refresh_token):
     payload = {
@@ -35,6 +41,43 @@ def authenticate(client_id,client_secret,refresh_token):
     auth_url = "https://www.strava.com/oauth/token"
 
     return requests.post(auth_url,data=payload, verify=False).json()['access_token']
+
+# Create placeholders for date by creating manual acitivities at the end of each day
+def create_date_activities(access_token):
+    activities_url = "https://www.strava.com/api/v3/athlete/activities"
+    header = {'Authorization': 'Bearer ' + access_token}
+    param  = {'per_page': 10, 'page': 1}
+    response = requests.get(activities_url,headers=header, params=param)
+    data = response.json()        
+
+    found_date = datetime.now()
+
+    # Find last date registered
+    for line in data :
+        # Check for new date in activities
+        taglist = line['name'].split("#")
+        if len(taglist)==2:
+            if taglist[1] == "AteaClubStats_Date":
+                found_date = datetime.strptime(taglist[0], "%Y-%m-%d")
+                break
+    
+    # If no date is found, create last 7 days.
+    if found_date>=datetime.now() :
+        found_date = found_date - timedelta(days=7)
+        found_date = found_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+    newest_date = datetime.now() - timedelta(days=1)
+    newest_date = newest_date.replace(hour=23, minute=59, second=0, microsecond=0)
+    write_date = found_date + timedelta(days=1, hours=23, minutes=59)
+    
+    # Loop to create all date-activities       
+    while newest_date >= write_date:
+        Activity_Name = '%s#AteaClubStats_Date' % write_date.strftime("%Y-%m-%d")
+        print("Activity_Name:  %s" % Activity_Name)
+        print("write_date:     %s" % write_date)
+        write_date = write_date + timedelta(days=1)
+
 
 # Read all stored activities from file. Create file if it doesn't exist
 def read_activities_from_file(file_name,activities):
@@ -117,13 +160,16 @@ def main():
     # Get an access token to authenticate when getting data from Strava
     access_token = authenticate(config["client_id"],config["client_secret"],config["refresh_token"])
     print('Access token:"%s"\n' % access_token)
-        
+
+    #Create manual activities
+    create_date_activities(access_token) #access_token must be write for ASA
+
     # Define data columns
     columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
     # Get stored data
     all_activities = pd.DataFrame(columns=columns)
-    all_activities = read_activities_from_file(config["data_file"], all_activities)
+    all_activities = read_activities_from_file("ClubData.pkl", all_activities)
 
     # Get data from Strava
     new_activities = pd.DataFrame(columns=columns)
@@ -131,16 +177,16 @@ def main():
     new_activities.set_index('id')
 
     # Add the new activites to the data already stored, but skip existing activities
-    # fin_activities = pd.DataFrame(columns=columns)
-    # fin_activities = remove_duplicate_activities(all_activities, new_activities)
+    fin_activities = pd.DataFrame(columns=columns)
+    fin_activities = remove_duplicate_activities(all_activities, new_activities)
 
     # Debug: Write the new activities to an Excel file
-    # FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    # new_activities.to_excel(FileName, index=False)
+    FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    new_activities.to_excel(FileName, index=False)
 
     # Debug: Write the old, stored activities to an Excel file
-    # FileName = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    # all_activities.to_excel(FileName)
+    FileName = 'AllData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    all_activities.to_excel(FileName)
 
     # Write the new and the old activities to an Excel file
     FileName = 'FinData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
