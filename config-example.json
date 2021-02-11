@@ -1,0 +1,16 @@
+{
+  "club_id": "nnnnn",
+  "clients": [
+    {
+      "client_id": "nnnn",
+      "client_secret": "0123456789abcdefghij0123456789abcdefghij",
+      "refresh_token": "0123456789abcdefghij0123456789abcdefghij",
+      "refresh_token_write": "0123456789abcdefghij0123456789abcdefghij"
+    },
+    {
+      "client_id": "nnnn",
+      "client_secret": "0123456789abcdefghij0123456789abcdefghij",
+      "refresh_token": "0123456789abcdefghij0123456789abcdefghij"
+    }
+  ]
+}

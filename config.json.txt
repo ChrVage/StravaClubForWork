@@ -1,7 +1,0 @@
-[Remove this line, and remove ".txt" from the filename of this file.
-{
-  "club_id": "[Insert the ID of your club - 5 digits]",
-  "client_id": "[Insert your client_id - 5 digits]",
-  "client_secret": "[Insert your client_secret - 40 digits and letters]",
-  "refresh_token": "[Insert your refresh_token - 40 digits and letters]",
-}
