@@ -3,8 +3,9 @@
 ## 1
 # Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
 ## 2
-# Identifiser uvanlige aktiviteter pr type
+# Identifiser og flagg uvanlige aktiviteter pr type
 #  * Mangler Crop
+#  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
 ## 3
 # Legg opp til at config inneholder flere tokens, 
 #  * les fra alle tokens (Alle må følge ASA)
@@ -28,6 +29,10 @@ import json
 import errno
 from datetime import datetime
 from datetime import timedelta
+import urllib3
+
+# Disable warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Get access token based on client_id, client_secret and refresh_token
 def authenticate(client_id, client_secret, refresh_token):
@@ -77,8 +82,6 @@ def create_date_activities(access_token,access_token_write):
         activity_name = '%s#AteaClubStats_Date' % write_date.strftime("%Y-%m-%d")
         strava_date = write_date.strftime("%Y-%m-%dT23:59") # ISO 8601 formatted date time
 
-        print("Activity_Name:  %s" % activity_name) #Debug
-        print("strava_date:    %s" % strava_date)   #Debug
         data = {
             'name': activity_name,
             'type': "run",
@@ -97,13 +100,10 @@ def create_date_activities(access_token,access_token_write):
 def read_activities_from_file(file_name,activities):
     try:
         activities = pd.read_pickle(file_name)
-        print('Opens file: %s' % file_name) #Debug
     except OSError as e:
         if e.errno == errno.ENOENT:
             activities.to_pickle(file_name)
-            print('Creates file: %s' % file_name) #Debug
         else:
-            print('Oops') #Debug
             raise
 
     return activities
@@ -152,7 +152,7 @@ def get_new_activities_from_strava(access_token,club_id,activities):
         if len(data)<pagesize :
             loop = False
     
-    print("activities found: %i" % (counter-1) ) #Debug
+    print("activities found: %i" % (counter-1) )
     return activities
 
 # Check "old" activites, replace when the same activity exist in "new" list. Append all that does not exist.
@@ -170,11 +170,9 @@ def main():
 
     # Get an access token to authenticate when getting data from Strava
     access_token = authenticate(config["clients"][0]["client_id"],config["clients"][0]["client_secret"],config["clients"][0]["refresh_token"])
-    print('access_token:      "%s"\n' % access_token) #Debug
 
     # Get an access token to authenticate when writing data to Strava
     access_token_write = authenticate(config["clients"][0]["client_id"],config["clients"][0]["client_secret"],config["clients"][0]["refresh_token_write"])
-    print('access_token_write:"%s"\n' % access_token_write) #Debug
 
     #Create manual activities to determine date on activity
     create_date_activities(access_token,access_token_write) 
