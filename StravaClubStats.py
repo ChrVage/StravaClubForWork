@@ -1,7 +1,6 @@
 #########################################################
 # Todo:
 ## 1
-# Finn og fjern de siste aktivitetene i den gamle filen som finnes i den nye (basert på id)
 ## 2
 # Identifiser og flagg uvanlige aktiviteter pr type
 #  * Mangler Crop
@@ -159,8 +158,9 @@ def get_new_activities_from_strava(access_token,club_id,activities):
 def remove_duplicate_activities(stored_activities,new_activities):
     # appen new activities backwards and reset index
     stored_activities = stored_activities.append(new_activities.iloc[::-1])
-    stored_activities.reset_index(drop=True, inplace=True)
-    
+    # stored_activities.reset_index(drop=True, inplace=True)
+    stored_activities.drop_duplicates(subset=['id'], keep='last', inplace=True, ignore_index=True)
+
     return stored_activities
 
 def main():
@@ -181,8 +181,8 @@ def main():
     columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
     # Get stored data
-    all_activities = pd.DataFrame(columns=columns)
-    all_activities = read_activities_from_file("ClubData.pkl", all_activities)
+    stored_activities = pd.DataFrame(columns=columns)
+    stored_activities = read_activities_from_file("ClubData.pkl", stored_activities)
 
     # Get data from Strava
     new_activities = pd.DataFrame(columns=columns)
@@ -190,16 +190,18 @@ def main():
     new_activities.set_index('id')
 
     # Add the new activites to the data already stored, but skip existing activities
-    fin_activities = pd.DataFrame(columns=columns)
-    fin_activities = remove_duplicate_activities(all_activities, new_activities)
+    all_activities = pd.DataFrame(columns=columns)
+    all_activities = remove_duplicate_activities(stored_activities, new_activities)
 
     # Debug: Write the new activities to an Excel file
-    FileName = 'Activitylist %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    new_activities.to_excel(FileName, index=False)
+    FileName = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
 
     # Write the dataset to file
-    fin_activities.to_pickle("ClubData.pkl")
-    fin_activities.to_excel("ClubData.xlsx")
+    all_activities.to_pickle("ClubData.pkl")
+
+    # all_activities.drop(inplace=True)
+
+    all_activities.to_excel(FileName)
 
 # Run the main() function only when this file is called as main.
 if __name__ == "__main__":
