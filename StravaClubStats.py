@@ -1,6 +1,5 @@
 #########################################################
 # Todo:
-## 1
 ## 2
 # Identifiser og flagg uvanlige aktiviteter pr type
 #  * Mangler Crop
@@ -151,19 +150,20 @@ def get_new_activities_from_strava(access_token,club_id,activities):
         if len(data)<pagesize :
             loop = False
     
-    print("activities found: %i" % (counter-1) )
     return activities
 
 # Check "old" activites, replace when the same activity exist in "new" list. Append all that does not exist.
 def remove_duplicate_activities(stored_activities,new_activities):
-    # appen new activities backwards and reset index
+    # Append new activities backwards and reset index
     stored_activities = stored_activities.append(new_activities.iloc[::-1])
-    # stored_activities.reset_index(drop=True, inplace=True)
     stored_activities.drop_duplicates(subset=['id'], keep='last', inplace=True, ignore_index=True)
 
     return stored_activities
 
 def main():
+    # Set start time for run statistics
+    start_time = datetime.now()
+
     # Read config.json file
     with open("config.json", "r") as jsonfile:
         config = json.load(jsonfile)
@@ -183,25 +183,33 @@ def main():
     # Get stored data
     stored_activities = pd.DataFrame(columns=columns)
     stored_activities = read_activities_from_file("ClubData.pkl", stored_activities)
+    print("Stored activities: %i" % len(stored_activities))
 
     # Get data from Strava
     new_activities = pd.DataFrame(columns=columns)
     new_activities = get_new_activities_from_strava(access_token, config["club_id"], new_activities)
     new_activities.set_index('id')
+    print("New activities:    %i" % len(new_activities))
 
     # Add the new activites to the data already stored, but skip existing activities
     all_activities = pd.DataFrame(columns=columns)
     all_activities = remove_duplicate_activities(stored_activities, new_activities)
+    print("All activities:    %i, %i added" % (len(all_activities), len(all_activities)-len(stored_activities)))
 
     # Debug: Write the new activities to an Excel file
     FileName = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    all_activities.to_excel(FileName)
 
     # Write the dataset to file
     all_activities.to_pickle("ClubData.pkl")
 
-    # all_activities.drop(inplace=True)
-
-    all_activities.to_excel(FileName)
+    # Write run statistics
+    run_statistics = pd.read_excel("RunStats.xlsx")
+    columns = [ "Timestamp", "Execution time (sec)", "Since last run (hrs)", "Stored activities", "New activities", "Appended", "Appended/New" ]
+    data = [datetime.now(), (datetime.now() - start_time).total_seconds(), (datetime.now() - run_statistics['Timestamp'].iloc[-1])*24, len(stored_activities), len(new_activities), len(all_activities)-len(stored_activities), (len(all_activities)-len(stored_activities))//len(new_activities)]
+    this_run = pd.DataFrame([data], columns=columns )
+    run_statistics = run_statistics.append(this_run, ignore_index=True )
+    run_statistics.to_excel("RunStats.xlsx", index=False)
 
 # Run the main() function only when this file is called as main.
 if __name__ == "__main__":
