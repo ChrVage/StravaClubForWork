@@ -1,19 +1,19 @@
 #########################################################
 # Todo:
+## 1
+# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
+#   * Nummerer aktivitetene som er mer enn 900 sekunder pr medlem
+#   * Gi alle aktiviteter med nummer>1 og <5 random nummer, laveste vinner (Manuell sjekk om en aktivitet har fått 2 pga navnebror)
+#   * Luke ut de som ikke jobber i Atea Norge
 ## 2
 # Identifiser og flagg uvanlige aktiviteter pr type
 #  * Mangler Crop
 #  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
 ## 3
-# Legg opp til at config inneholder flere tokens, 
 #  * les fra alle tokens (Alle må følge ASA)
 #  * Legge inn info om hvem som har lest aktiviteten.
 #  * Sjekk om noen har id som ikke andre har.
 ## 4
-# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
-#   * Nummerer aktivitetene som er mer enn 900 sekunder pr medlem
-#   * Gi alle aktiviteter med nummer>1 og <5 random nummer, laveste vinner (Manuell sjekk om en aktivitet har fått 2 pga navnebror)
-#   * Luke ut de som ikke jobber i Atea Norge
 ## 5
 # Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
@@ -94,17 +94,28 @@ def create_date_activities(access_token,access_token_write):
         # Increase the date with 1 day
         write_date = write_date + timedelta(days=1)
 
-# Read all stored activities from file. Create file if it doesn't exist
-def read_activities_from_file(file_name,activities):
+# Read dataframe from Excel. Create file if it doesn't exist
+def read_df_from_excel(file_name,df):
     try:
-        activities = pd.read_pickle(file_name)
+        df = pd.read_excel(file_name + ".xlsx")
     except OSError as e:
-        if e.errno == errno.ENOENT:
-            activities.to_pickle(file_name)
+        if e.errno == errno.ENOENT: # No such file or directory, create new file
+            df.to_excel(file_name + ".xlsx", index=False)
         else:
             raise
+    return df
 
-    return activities
+# Write dataframe to Excel. Change name if error
+def write_df_to_excel(file_name,df):
+    try:
+        df.to_excel('%s.xlsx' % file_name, index=False)
+    except OSError as e:
+        if e.errno == errno.EACCES: # Permission denied: File already open
+            file_name2 = '%s %s.xlsx' % (file_name, datetime.now().strftime("%Y.%m.%d %H%M"))
+            df.to_excel(file_name2, index=False)
+            print('Permission denied when saving file. File saved as: "%s". Please rename to "%s.xlsx"' % (file_name2, file_name))
+        else:
+            raise
 
 
 # Get all new activities from Strava API
@@ -139,11 +150,11 @@ def get_new_activities_from_strava(access_token,club_id,activities):
             activities.at[counter, 'Type']     = line['type']
             activities.at[counter, 'Duration'] = line['elapsed_time']
             activities.at[counter, 'Distance'] = line['distance']
-            activities.at[counter, 'Date']     = activity_date.strftime("%Y-%m-%d")
-            activities.at[counter, 'id']       = "%s#%s#%s#%s" % (  activities.at[counter, 'Athlete'], 
-                                                                    activities.at[counter, 'Duration'], 
-                                                                    activities.at[counter, 'Distance'],
-                                                                    activities.at[counter, 'Date'])
+            activities.at[counter, 'Date']     = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            activities.at[counter, 'id']       = "%s#%s#%s#%s" % ( activities.at[counter, 'Athlete'], 
+                                                                   activities.at[counter, 'Duration'], 
+                                                                   activities.at[counter, 'Distance'],
+                                                                   activity_date.strftime("%Y-%m-%d"))
 
             counter = counter + 1
         
@@ -178,38 +189,52 @@ def main():
     create_date_activities(access_token,access_token_write) 
 
     # Define data columns
-    columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
+    data_columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
     # Get stored data
-    stored_activities = pd.DataFrame(columns=columns)
-    stored_activities = read_activities_from_file("ClubData.pkl", stored_activities)
+    data_file_name = 'ClubData %s' % config["club_id"]
+    stored_activities = pd.DataFrame(columns=data_columns)
+    stored_activities = read_df_from_excel(data_file_name, stored_activities)
     print("Stored activities: %i" % len(stored_activities))
 
     # Get data from Strava
-    new_activities = pd.DataFrame(columns=columns)
-    new_activities = get_new_activities_from_strava(access_token, config["club_id"], new_activities)
-    new_activities.set_index('id')
-    print("New activities:    %i" % len(new_activities))
+    api_activities = pd.DataFrame(columns=data_columns)
+    api_activities = get_new_activities_from_strava(access_token, config["club_id"], api_activities)
+    api_activities.set_index('id')
+    print("Api activities:    %i" % len(api_activities))
 
     # Add the new activites to the data already stored, but skip existing activities
-    all_activities = pd.DataFrame(columns=columns)
-    all_activities = remove_duplicate_activities(stored_activities, new_activities)
+    all_activities = pd.DataFrame(columns=data_columns)
+    all_activities = remove_duplicate_activities(stored_activities, api_activities)
     print("All activities:    %i, %i added" % (len(all_activities), len(all_activities)-len(stored_activities)))
 
     # Debug: Write the new activities to an Excel file
-    FileName = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    all_activities.to_excel(FileName)
+    file_name = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    all_activities.to_excel(file_name, index=False)
+    write_df_to_excel('TestData', stored_activities)
 
     # Write the dataset to file
-    all_activities.to_pickle("ClubData.pkl")
+    write_df_to_excel(data_file_name, all_activities)
 
     # Write run statistics
     run_statistics = pd.read_excel("RunStats.xlsx")
-    columns = [ "Timestamp", "Execution time (sec)", "Since last run (hrs)", "Stored activities", "New activities", "Appended", "Appended/New" ]
-    data = [datetime.now(), (datetime.now() - start_time).total_seconds(), (datetime.now() - run_statistics['Timestamp'].iloc[-1])*24, len(stored_activities), len(new_activities), len(all_activities)-len(stored_activities), (len(all_activities)-len(stored_activities))//len(new_activities)]
-    this_run = pd.DataFrame([data], columns=columns )
+    stat_columns = [ "Timestamp", 
+                     "Execution time (sec)", 
+                     "Since last run (hrs)", 
+                     "Stored activities", 
+                     "API activities", 
+                     "Appended", 
+                     "Appended/New" ]
+    data = [ datetime.now(), 
+             (datetime.now() - start_time).total_seconds(), 
+             (datetime.now() - run_statistics['Timestamp'].iloc[-1])*24, 
+             len(stored_activities), 
+             len(api_activities), 
+             len(all_activities)-len(stored_activities), 
+             (len(all_activities)-len(stored_activities))//len(api_activities)]
+    this_run = pd.DataFrame([data], columns=stat_columns )
     run_statistics = run_statistics.append(this_run, ignore_index=True )
-    run_statistics.to_excel("RunStats.xlsx", index=False)
+    write_df_to_excel('RunStats', run_statistics)
 
 # Run the main() function only when this file is called as main.
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
-test.py
 config.json
-ClubData.pkl
-ClubData.xlsx
-Test.xlsx
-TestRead.xlsx
+ClubData*.xlsx
+Test.py
+Test*.xlsx
 Members.xlsx
+Activity*.xlsx
+RunStats.xlsx
+Plastp*.xlsx

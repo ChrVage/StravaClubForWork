@@ -10,8 +10,7 @@ A text to use with Strava.com and the Postman application to get the right token
 
 Paste the below code in a browser, hit enter then grab the "code" part from the resulting url. 
 (The page displayed may look like an error)
-http://www.strava.com/oauth/authorize?client_id=[Fill_5_digits_here]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=profile:read_all,activity:read_all
-
+http://www.strava.com/oauth/authorize?client_id=[Fill_5_digits_here]&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=profile:read_all,activity:read_all,write
 
 Exchange the 40 character code from the resulting url in the above step for access token & refresh token
 Post this in Postman:
