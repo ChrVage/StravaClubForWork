@@ -1,20 +1,19 @@
 #########################################################
 # Todo:
-## 1
+##  
 # Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
 #   * Nummerer aktivitetene som er mer enn 900 sekunder pr medlem
 #   * Gi alle aktiviteter med nummer>1 og <5 random nummer, laveste vinner (Manuell sjekk om en aktivitet har fått 2 pga navnebror)
 #   * Luke ut de som ikke jobber i Atea Norge
-## 2
+## 
 # Identifiser og flagg uvanlige aktiviteter pr type
 #  * Mangler Crop
 #  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
-## 3
+## 
 #  * les fra alle tokens (Alle må følge ASA)
 #  * Legge inn info om hvem som har lest aktiviteten.
 #  * Sjekk om noen har id som ikke andre har.
-## 4
-## 5
+## 
 # Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
 #   Lag oversikt over antall medlemmer i klubben
@@ -28,6 +27,8 @@ import errno
 from datetime import datetime
 from datetime import timedelta
 import urllib3
+import os
+from stat import S_IREAD, S_IRGRP, S_IROTH
 
 # Disable warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -97,10 +98,10 @@ def create_date_activities(access_token,access_token_write):
 # Read dataframe from Excel. Create file if it doesn't exist
 def read_df_from_excel(file_name,df):
     try:
-        df = pd.read_excel(file_name + ".xlsx")
+        df = pd.read_excel(file_name)
     except OSError as e:
         if e.errno == errno.ENOENT: # No such file or directory, create new file
-            df.to_excel(file_name + ".xlsx", index=False)
+            df.to_excel(file_name, index=False)
         else:
             raise
     return df
@@ -108,12 +109,12 @@ def read_df_from_excel(file_name,df):
 # Write dataframe to Excel. Change name if error
 def write_df_to_excel(file_name,df):
     try:
-        df.to_excel('%s.xlsx' % file_name, index=False)
+        df.to_excel('%s' % file_name, index=False)
     except OSError as e:
         if e.errno == errno.EACCES: # Permission denied: File already open
             file_name2 = '%s %s.xlsx' % (file_name, datetime.now().strftime("%Y.%m.%d %H%M"))
             df.to_excel(file_name2, index=False)
-            print('Permission denied when saving file. File saved as: "%s". Please rename to "%s.xlsx"' % (file_name2, file_name))
+            print('Permission denied when saving file. File saved as: "%s". Please rename to "%s"' % (file_name2, file_name))
         else:
             raise
 
@@ -192,7 +193,7 @@ def main():
     data_columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
     
     # Get stored data
-    data_file_name = 'ClubData %s' % config["club_id"]
+    data_file_name = 'ClubData %s.xlsx' % config["club_id"]
     stored_activities = pd.DataFrame(columns=data_columns)
     stored_activities = read_df_from_excel(data_file_name, stored_activities)
     print("Stored activities: %i" % len(stored_activities))
@@ -211,10 +212,15 @@ def main():
     # Debug: Write the new activities to an Excel file
     file_name = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
     all_activities.to_excel(file_name, index=False)
-    write_df_to_excel('TestData', stored_activities)
+    write_df_to_excel('TestData.xlsx', stored_activities)
 
     # Write the dataset to file
     write_df_to_excel(data_file_name, all_activities)
+    
+    # Write a copy to TP2B
+    strava_data_file = 'C:/Users/ChrVage/Atea/NO-ATEA alle - Strava Data/StravaData.xlsx'
+    write_df_to_excel(strava_data_file, all_activities)
+    # os.chmod(strava_data_file, S_IREAD|S_IRGRP|S_IROTH)
 
     # Write run statistics
     run_statistics = pd.read_excel("RunStats.xlsx")
@@ -234,7 +240,7 @@ def main():
              (len(all_activities)-len(stored_activities))//len(api_activities)]
     this_run = pd.DataFrame([data], columns=stat_columns )
     run_statistics = run_statistics.append(this_run, ignore_index=True )
-    write_df_to_excel('RunStats', run_statistics)
+    write_df_to_excel('RunStats.xlsx', run_statistics)
 
 # Run the main() function only when this file is called as main.
 if __name__ == "__main__":
