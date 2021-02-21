@@ -15,3 +15,4 @@ Collecting and storing activities from a Strava Club for statistics.
 * Get new activities from Strava
 * Append data and remove existing (duplicate) activities.
 * Store new dataset to file
+* Create subsets automatically each week 
