@@ -1,13 +1,6 @@
 #########################################################
 # Todo:
 ##  
-# Lag trekningsliste i Excel for forrige uke hver gang man starter på ny uke
-#   * Nummerer aktivitetene som er mer enn 900 sekunder pr medlem
-#   * Gi alle aktiviteter med nummer>1 og <5 random nummer, laveste vinner (Manuell sjekk om en aktivitet har fått 2 pga navnebror)
-#   * Luke ut de som ikke jobber i Atea Norge
-## 
-# Identifiser og flagg uvanlige aktiviteter pr type
-#  * Mangler Crop
 #  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
 ## 
 #  * les fra alle tokens (Alle må følge ASA)
@@ -28,10 +21,12 @@ from datetime import datetime
 from datetime import timedelta
 import urllib3
 import os
+import numpy as np
 from stat import S_IREAD, S_IRGRP, S_IROTH
 
 # Disable warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+pd.options.mode.chained_assignment = None  # default='warn'
 
 # Get access token based on client_id, client_secret and refresh_token
 def authenticate(client_id, client_secret, refresh_token):
@@ -172,6 +167,70 @@ def remove_duplicate_activities(stored_activities,new_activities):
 
     return stored_activities
 
+def create_subset(df,exclude_athletes):
+    # Read table to check which subsets to create
+    config_subset = pd.DataFrame()
+    config_subset = read_df_from_excel("config_subset.xlsx", config_subset )
+
+    # Set end date to yesterday to check for subsets that ended 
+    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1) 
+
+    # Select lines from config_subset that matches 
+    index_list = config_subset.index[config_subset['End date']==end_date].tolist()
+
+    if len(index_list)==0: # No subset to create on this date
+        print("No subset ends on %s" % end_date.strftime("%Y-%m-%d"))
+        return
+
+    for index in index_list:
+        start_date = config_subset.at[index, 'Start date'] 
+        setup =     config_subset.at[index, 'Setup'] 
+        file_name = config_subset.at[index, 'Filename']
+        new_line = config_subset.at[index, 'Newline']
+
+        # Find rows in the specified date interval
+        subset_df = df.loc[(df['Date']>=start_date) & (df['Date']<=end_date)]
+
+        if setup=="Trekning":
+            # Create draw-column with random numbers
+            subset_df[setup] = np.random.randint(1, 10000, subset_df.shape[0])
+            # Disqualify activities that are too short
+            subset_df.loc[subset_df['Duration'] < 900, setup] = 10000
+            subset_df.loc[subset_df['Duration'] < 900, 'Kommentar'] = "For kort økt"
+            # Sort dataset with the winner on top
+            subset_df.sort_values(by=[setup], inplace=True)
+            if new_line:
+                new_start_date = start_date + timedelta(days=7)
+                new_file_name  = "Trekning uke %s.xlsx" % new_start_date.strftime("%V-%Y")
+
+                config_subset = config_subset.append(  {'End date': end_date + timedelta(days=7),
+                                                        'Start date': new_start_date, 
+                                                        'Setup': setup, 
+                                                        'Filename': new_file_name, 
+                                                        'Newline': True}, 
+                                                        ignore_index=True)
+
+        if setup=="Minutter":
+            # Set actual number of minutes
+            subset_df[setup]         = subset_df['Duration']/60
+            # Limit to 1 m/s for those with duration over 45 minutes
+            subset_df['45 min'] = 45*60
+            subset_df.loc[(subset_df[setup]>45) & (subset_df['Distance']<subset_df['Duration']), setup] = subset_df.loc[:, ['45 min','Distance']].max(axis=1)/60
+            subset_df.loc[(subset_df['Duration']/60)!=(subset_df[setup]), 'Kommentar'] = "Aktiviteter over 45 minutter er begrenset til 1 m/s"
+            subset_df.drop(['45 min'], axis=1, inplace=True)
+
+        # Remove activities from people not working in Atea
+        subset_df.loc[subset_df.Athlete.isin(exclude_athletes), setup] = 0
+        subset_df.loc[subset_df.Athlete.isin(exclude_athletes), 'Kommentar'] = "Jobber ikke i Atea Norge"
+
+        # Write the new subset to Excel
+        write_df_to_excel(file_name, subset_df)
+
+    # Delete lines for created subsets
+    config_subset.drop(index_list,inplace=True)
+    # Update config_subset - file
+    write_df_to_excel("config_subset.xlsx", config_subset)
+
 def main():
     # Set start time for run statistics
     start_time = datetime.now()
@@ -181,7 +240,8 @@ def main():
         config = json.load(jsonfile)
 
     # Get an access token to authenticate when getting data from Strava
-    access_token = authenticate(config["clients"][0]["client_id"],config["clients"][0]["client_secret"],config["clients"][0]["refresh_token"])
+    #access_token = authenticate(config["clients"][0]["client_id"],config["clients"][0]["client_secret"],config["clients"][0]["refresh_token"])
+    access_token = authenticate(config["clients"][1]["client_id"],config["clients"][1]["client_secret"],config["clients"][1]["refresh_token"])
 
     # Get an access token to authenticate when writing data to Strava
     access_token_write = authenticate(config["clients"][0]["client_id"],config["clients"][0]["client_secret"],config["clients"][0]["refresh_token_write"])
@@ -209,10 +269,12 @@ def main():
     all_activities = remove_duplicate_activities(stored_activities, api_activities)
     print("All activities:    %i, %i added" % (len(all_activities), len(all_activities)-len(stored_activities)))
 
+    # Check for and create subsets of the data
+    create_subset(stored_activities, config["exclude_athletes"])
+
     # Debug: Write the new activities to an Excel file
     file_name = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
-    all_activities.to_excel(file_name, index=False)
-    write_df_to_excel('TestData.xlsx', stored_activities)
+    write_df_to_excel(file_name, all_activities)
 
     # Write the dataset to file
     write_df_to_excel(data_file_name, all_activities)
