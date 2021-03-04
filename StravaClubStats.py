@@ -156,16 +156,16 @@ def get_new_activities_from_strava(access_token,club_id,activities):
                     continue
                 
             # Assign values to dataframe
-            activities.at[counter, 'Athlete']  = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
-            activities.at[counter, 'Name']     = line['name']
-            activities.at[counter, 'Type']     = line['type']
-            activities.at[counter, 'Duration'] = line['elapsed_time']
-            activities.at[counter, 'Distance'] = line['distance']
-            activities.at[counter, 'Date']     = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            activities.at[counter, 'id']       = "%s#%s#%s#%s" % ( activities.at[counter, 'Athlete'], 
-                                                                   activities.at[counter, 'Duration'], 
-                                                                   activities.at[counter, 'Distance'],
-                                                                   activity_date.strftime("%Y-%m-%d"))
+            activities.at[counter, 'Athlete']       = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
+            activities.at[counter, 'Name']          = line['name']
+            activities.at[counter, 'Type']          = line['type']
+            activities.at[counter, 'Elapsed time']  = line['elapsed_time']
+            activities.at[counter, 'Distance']      = line['distance']
+            activities.at[counter, 'Date']          = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            activities.at[counter, 'id']            = "%s#%s#%s#%s" % ( activities.at[counter, 'Athlete'], 
+                                                                        activities.at[counter, 'Elapsed time'], 
+                                                                        activities.at[counter, 'Distance'],
+                                                                        activity_date.strftime("%Y-%m-%d"))
             # duration = line
             # activities.at[counter, 'Adjusted duration'] = 
 
@@ -212,8 +212,8 @@ def create_subset(df,exclude_athletes):
             no_count = 10000
             subset_df[setup] = np.random.randint(1, no_count, subset_df.shape[0])
             # Disqualify activities that are too short
-            subset_df.loc[subset_df['Duration'] < 900, setup] = no_count
-            subset_df.loc[subset_df['Duration'] < 900, 'Kommentar'] = "For kort økt"
+            subset_df.loc[subset_df['Elapsed time'] < 900, setup] = no_count
+            subset_df.loc[subset_df['Elapsed time'] < 900, 'Kommentar'] = "For kort økt"
             # Sort dataset with the winner on top
             subset_df.sort_values(by=[setup], inplace=True)
             if new_line:
@@ -230,11 +230,11 @@ def create_subset(df,exclude_athletes):
         if setup=="Minutter":
             no_count = 0
             # Set actual number of minutes
-            subset_df[setup]         = subset_df['Duration']/60
+            subset_df[setup]         = subset_df['Elapsed time']/60
             # Limit to 1 m/s for those with duration over 45 minutes
             subset_df['45 min'] = 45*60
-            subset_df.loc[(subset_df[setup]>45) & (subset_df['Distance']<subset_df['Duration']), setup] = subset_df.loc[:, ['45 min','Distance']].max(axis=1)/60
-            subset_df.loc[(subset_df['Duration']/60)!=(subset_df[setup]), 'Kommentar'] = "Aktiviteter over 45 minutter er begrenset til 1 m/s"
+            subset_df.loc[(subset_df[setup]>45) & (subset_df['Distance']<subset_df['Elapsed time']), setup] = subset_df.loc[:, ['45 min','Distance']].max(axis=1)/60
+            subset_df.loc[(subset_df['Elapsed time']/60)!=(subset_df[setup]), 'Kommentar'] = "Aktiviteter over 45 minutter er begrenset til 1 m/s"
             subset_df.drop(['45 min'], axis=1, inplace=True)
 
         # Remove activities from people not working in Atea
@@ -270,7 +270,7 @@ def main():
     create_date_activities(access_token,access_token_write) 
 
     # Define data columns
-    data_columns = [ "Athlete", "Name", "Type", "Duration", "Distance", "Date", "id" ]
+    data_columns = [ "Athlete", "Name", "Type", "Elapsed time", "Distance", "Date", "id" ]
     
     # Get stored data
     data_file_name = 'ClubData %s.xlsx' % config["club_id"]
