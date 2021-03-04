@@ -1,16 +1,30 @@
 #########################################################
 # Todo:
-##  
+## 
+#  * Legg inn tid som minutt-utregningen
+#  * Summér tid på klubben og antall Atleter
+#  * Kopier viktige filer til en fornuftig plass
+#  * Legg inn varighet på hver aktivitet som datetime?
+#  * Legg inn minutter/datetime på alle aktiviteter
+#  * Rydd i kolonner til dataframe - globale lister kanskje?
+## 
+#  * les fra 2 tokens
+#  * Legge inn client-id som har lest aktiviteten.
+## 
 #  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
-## 
-#  * les fra alle tokens (Alle må følge ASA)
-#  * Legge inn info om hvem som har lest aktiviteten.
-#  * Sjekk om noen har id som ikke andre har.
-## 
+##
 # Sjekk mot medlemslisten hvem som har like navn hver mandag
 # Lag fil med run-statistics
 #   Lag oversikt over antall medlemmer i klubben
 #   Hvor mange aktiviteter som var nye side sist
+# 
+# Mangler:
+# Olav Løchen https://www.strava.com/activities/4712109534
+# Glenn Østerud https://www.strava.com/activities/4711598792
+# Victoria Rustadbakken https://www.strava.com/activities/4711153502
+# Anett Våge https://www.strava.com/activities/4709760748
+# Christian Våge https://www.strava.com/activities/4709720693
+
 #########################################################
 
 import requests
@@ -83,7 +97,7 @@ def create_date_activities(access_token,access_token_write):
             'elapsed_time': 1,
             'distance': 0
             }
-        
+      
         # Create the placeholder-activity
         response = requests.post(url=url, headers=header, data=data)
         
@@ -132,6 +146,7 @@ def get_new_activities_from_strava(access_token,club_id,activities):
 
         readpage = readpage + 1
       
+        # Loop the json-file
         for line in data :
             # There are no date in the data, so manual activities are created as placeholders, date will change when these activites are found
             taglist = line['name'].split("#")
@@ -151,6 +166,8 @@ def get_new_activities_from_strava(access_token,club_id,activities):
                                                                    activities.at[counter, 'Duration'], 
                                                                    activities.at[counter, 'Distance'],
                                                                    activity_date.strftime("%Y-%m-%d"))
+            # duration = line
+            # activities.at[counter, 'Adjusted duration'] = 
 
             counter = counter + 1
         
@@ -179,7 +196,6 @@ def create_subset(df,exclude_athletes):
     index_list = config_subset.index[config_subset['End date']==end_date].tolist()
 
     if len(index_list)==0: # No subset to create on this date
-        print("No subset ends on %s" % end_date.strftime("%Y-%m-%d"))
         return
 
     for index in index_list:
@@ -193,9 +209,10 @@ def create_subset(df,exclude_athletes):
 
         if setup=="Trekning":
             # Create draw-column with random numbers
-            subset_df[setup] = np.random.randint(1, 10000, subset_df.shape[0])
+            no_count = 10000
+            subset_df[setup] = np.random.randint(1, no_count, subset_df.shape[0])
             # Disqualify activities that are too short
-            subset_df.loc[subset_df['Duration'] < 900, setup] = 10000
+            subset_df.loc[subset_df['Duration'] < 900, setup] = no_count
             subset_df.loc[subset_df['Duration'] < 900, 'Kommentar'] = "For kort økt"
             # Sort dataset with the winner on top
             subset_df.sort_values(by=[setup], inplace=True)
@@ -211,6 +228,7 @@ def create_subset(df,exclude_athletes):
                                                         ignore_index=True)
 
         if setup=="Minutter":
+            no_count = 0
             # Set actual number of minutes
             subset_df[setup]         = subset_df['Duration']/60
             # Limit to 1 m/s for those with duration over 45 minutes
@@ -220,11 +238,13 @@ def create_subset(df,exclude_athletes):
             subset_df.drop(['45 min'], axis=1, inplace=True)
 
         # Remove activities from people not working in Atea
-        subset_df.loc[subset_df.Athlete.isin(exclude_athletes), setup] = 0
+        subset_df.loc[subset_df.Athlete.isin(exclude_athletes), setup] = no_count
         subset_df.loc[subset_df.Athlete.isin(exclude_athletes), 'Kommentar'] = "Jobber ikke i Atea Norge"
 
         # Write the new subset to Excel
         write_df_to_excel(file_name, subset_df)
+        print("Subset created: %s" % file_name)
+        
 
     # Delete lines for created subsets
     config_subset.drop(index_list,inplace=True)
@@ -283,6 +303,8 @@ def main():
     strava_data_file = 'C:/Users/ChrVage/Atea/NO-ATEA alle - Strava Data/StravaData.xlsx'
     write_df_to_excel(strava_data_file, all_activities)
     # os.chmod(strava_data_file, S_IREAD|S_IRGRP|S_IROTH)
+
+    print("Last run: %s" % datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     # Write run statistics
     run_statistics = pd.read_excel("RunStats.xlsx")
