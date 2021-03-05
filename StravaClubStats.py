@@ -1,7 +1,8 @@
 #########################################################
 # Todo:
 ## 
-#  * Legg inn tid som minutt-utregningen
+#  * Bytt om til datetime
+#   Legg inn tid som minutt-utregningen
 #  * Summér tid på klubben og antall Atleter
 #  * Kopier viktige filer til en fornuftig plass
 #  * Legg inn varighet på hver aktivitet som datetime?
@@ -31,8 +32,7 @@ import requests
 import pandas as pd
 import json
 import errno
-from datetime import datetime
-from datetime import timedelta
+import datetime
 import urllib3
 import os
 import numpy as np
@@ -65,7 +65,7 @@ def create_date_activities(access_token,access_token_write):
     data = response.json()        
 
     # Set found_date 7 days back
-    found_date = datetime.now()- timedelta(days=7)
+    found_date = datetime.datetime.now()- datetime.timedelta(days=7)
     found_date = found_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Find last date registered in Strava
@@ -73,14 +73,14 @@ def create_date_activities(access_token,access_token_write):
         taglist = line['name'].split("#")
         if len(taglist)==2:
             if taglist[1] == "AteaClubStats_Date":
-                found_date = datetime.strptime(taglist[0], "%Y-%m-%d")
+                found_date = datetime.datetime.strptime(taglist[0], "%Y-%m-%d")
                 break
     # Set newest_date to yesterday @ 23:59 (The last date to write)
-    newest_date = datetime.now() - timedelta(days=1)
+    newest_date = datetime.datetime.now() - datetime.timedelta(days=1)
     newest_date = newest_date.replace(hour=23, minute=59, second=0, microsecond=0)
 
     # Set write_date to next date to write
-    write_date = found_date + timedelta(days=1, hours=23, minutes=59)
+    write_date = found_date + datetime.timedelta(days=1, hours=23, minutes=59)
     
     url = "https://www.strava.com/api/v3/activities"
     header = {'Authorization': 'Bearer ' + access_token_write}
@@ -102,7 +102,7 @@ def create_date_activities(access_token,access_token_write):
         response = requests.post(url=url, headers=header, data=data)
         
         # Increase the date with 1 day
-        write_date = write_date + timedelta(days=1)
+        write_date = write_date + datetime.timedelta(days=1)
 
 # Read dataframe from Excel. Create file if it doesn't exist
 def read_df_from_excel(file_name,df):
@@ -121,7 +121,7 @@ def write_df_to_excel(file_name,df):
         df.to_excel('%s' % file_name, index=False)
     except OSError as e:
         if e.errno == errno.EACCES: # Permission denied: File already open
-            file_name2 = '%s %s.xlsx' % (file_name, datetime.now().strftime("%Y.%m.%d %H%M"))
+            file_name2 = '%s %s.xlsx' % (file_name, datetime.datetime.now().strftime("%Y.%m.%d %H%M"))
             df.to_excel(file_name2, index=False)
             print('Permission denied when saving file. File saved as: "%s". Please rename to "%s"' % (file_name2, file_name))
         else:
@@ -136,7 +136,7 @@ def get_new_activities_from_strava(access_token,club_id,activities):
     pagesize = 50
     url = "https://www.strava.com/api/v3/clubs/%s/activities" % club_id
     counter = 0
-    activity_date = datetime.now()
+    activity_date = datetime.datetime.now()
     
     while loop:
         header = {'Authorization': 'Bearer ' + access_token}
@@ -152,23 +152,28 @@ def get_new_activities_from_strava(access_token,club_id,activities):
             taglist = line['name'].split("#")
             if len(taglist)==2:
                 if taglist[1] == "AteaClubStats_Date":
-                    activity_date = datetime.strptime(taglist[0], "%Y-%m-%d")
+                    activity_date = datetime.datetime.strptime(taglist[0], "%Y-%m-%d")
                     continue
-                
+            seconds = line['elapsed_time']
+            meters  = line['distance']
             # Assign values to dataframe
             activities.at[counter, 'Athlete']       = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
             activities.at[counter, 'Name']          = line['name']
             activities.at[counter, 'Type']          = line['type']
-            activities.at[counter, 'Elapsed time']  = line['elapsed_time']
-            activities.at[counter, 'Distance']      = line['distance']
+            activities.at[counter, 'Elapsed time']  = seconds
+            activities.at[counter, 'Distance']      = meters
             activities.at[counter, 'Date']          = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
             activities.at[counter, 'id']            = "%s#%s#%s#%s" % ( activities.at[counter, 'Athlete'], 
                                                                         activities.at[counter, 'Elapsed time'], 
                                                                         activities.at[counter, 'Distance'],
                                                                         activity_date.strftime("%Y-%m-%d"))
-            # duration = line
-            # activities.at[counter, 'Adjusted duration'] = 
+            
+            # If duration is over 45 minutes and speed is lower than 1 m/s, limit to 45 min and at least 1 m/s
+            if seconds>2700 and seconds>meters:
+                seconds = max(2700,meters)
 
+            activities.at[counter, 'Duration']      = datetime.timedelta(seconds=seconds)
+            
             counter = counter + 1
         
         if len(data)<pagesize :
@@ -190,7 +195,7 @@ def create_subset(df,exclude_athletes):
     config_subset = read_df_from_excel("config_subset.xlsx", config_subset )
 
     # Set end date to yesterday to check for subsets that ended 
-    end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1) 
+    end_date = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1) 
 
     # Select lines from config_subset that matches 
     index_list = config_subset.index[config_subset['End date']==end_date].tolist()
@@ -217,10 +222,10 @@ def create_subset(df,exclude_athletes):
             # Sort dataset with the winner on top
             subset_df.sort_values(by=[setup], inplace=True)
             if new_line:
-                new_start_date = start_date + timedelta(days=7)
+                new_start_date = start_date + datetime.timedelta(days=7)
                 new_file_name  = "Trekning uke %s.xlsx" % new_start_date.strftime("%V-%Y")
 
-                config_subset = config_subset.append(  {'End date': end_date + timedelta(days=7),
+                config_subset = config_subset.append(  {'End date': end_date + datetime.timedelta(days=7),
                                                         'Start date': new_start_date, 
                                                         'Setup': setup, 
                                                         'Filename': new_file_name, 
@@ -229,7 +234,7 @@ def create_subset(df,exclude_athletes):
 
         if setup=="Minutter":
             no_count = 0
-            # Set actual number of minutes
+            # Set actual number of minutes =IF(D2>2700;IF(E2<D2;MAX(E2;2700);D2);D2)
             subset_df[setup]         = subset_df['Elapsed time']/60
             # Limit to 1 m/s for those with duration over 45 minutes
             subset_df['45 min'] = 45*60
@@ -253,7 +258,7 @@ def create_subset(df,exclude_athletes):
 
 def main():
     # Set start time for run statistics
-    start_time = datetime.now()
+    start_time = datetime.datetime.now()
 
     # Read config.json file
     with open("config.json", "r") as jsonfile:
@@ -293,7 +298,7 @@ def main():
     create_subset(stored_activities, config["exclude_athletes"])
 
     # Debug: Write the new activities to an Excel file
-    file_name = 'ClubData %s.xlsx' % datetime.now().strftime("%Y.%m.%d %H%M")
+    file_name = 'ClubData %s.xlsx' % datetime.datetime.now().strftime("%Y.%m.%d %H%M")
     write_df_to_excel(file_name, all_activities)
 
     # Write the dataset to file
@@ -304,7 +309,7 @@ def main():
     write_df_to_excel(strava_data_file, all_activities)
     # os.chmod(strava_data_file, S_IREAD|S_IRGRP|S_IROTH)
 
-    print("Last run: %s" % datetime.now().strftime("%Y-%m-%d %H:%M"))
+    print("Last run: %s" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     # Write run statistics
     run_statistics = pd.read_excel("RunStats.xlsx")
@@ -315,9 +320,9 @@ def main():
                      "API activities", 
                      "Appended", 
                      "Appended/New" ]
-    data = [ datetime.now(), 
-             (datetime.now() - start_time).total_seconds(), 
-             (datetime.now() - run_statistics['Timestamp'].iloc[-1])*24, 
+    data = [ datetime.datetime.now(), 
+             (datetime.datetime.now() - start_time).total_seconds(), 
+             (datetime.datetime.now() - run_statistics['Timestamp'].iloc[-1])*24, 
              len(stored_activities), 
              len(api_activities), 
              len(all_activities)-len(stored_activities), 
