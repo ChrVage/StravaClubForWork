@@ -1,28 +1,20 @@
 #########################################################
 # Todo:
-## 
-#  * Summér tid på klubben og antall Atleter
-#  * Kopier viktige filer til en fornuftig plass
-## 
-#  * les fra 2 tokens
-#  * Legge inn client-id som har lest aktiviteten.
-## 
-#  * Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
-##
-# Sjekk mot medlemslisten hvem som har like navn hver mandag
-# Lag fil med run-statistics
-#   Lag oversikt over antall medlemmer i klubben
-#   Hvor mange aktiviteter som var nye side sist
-
-#  * Rydd i datetime - håndtering.
-# 
-# Mangler:
-# Olav Løchen https://www.strava.com/activities/4712109534
-# Glenn Østerud https://www.strava.com/activities/4711598792
-# Victoria Rustadbakken https://www.strava.com/activities/4711153502
-# Anett Våge https://www.strava.com/activities/4709760748
-# Christian Våge https://www.strava.com/activities/4709720693
-
+#   -Summér tid på klubben og antall Atleter
+#   -Kopier viktige filer til en fornuftig plass
+#   -les fra 2 tokens
+#       -Legge inn client-id som har lest aktiviteten.
+#   -Lag system for Sykle til jobben
+#       -Forms - registrering av Strava-brukernavn og epost.  
+#   -Fjern aktiviteter som er fjernet fra activities, om det finnes en annen med samme bruker+dato + type/navn
+#   -Sjekk mot medlemslisten hvem som har like navn
+#   -Rydd i datetime - håndtering.
+#   -Sjekk om disse mangler ennå
+#       -Olav Løchen https://www.strava.com/activities/4712109534
+#       -Glenn Østerud https://www.strava.com/activities/4711598792
+#       -Victoria Rustadbakken https://www.strava.com/activities/4711153502
+#       -Anett Våge https://www.strava.com/activities/4709760748
+#       -Christian Våge https://www.strava.com/activities/4709720693
 #########################################################
 
 import requests
@@ -40,7 +32,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
 
 # Define global variables
-data_columns = [ "Athlete", "Name", "Type", "Elapsed time", "Distance", "Date", "id", "Duration" ]
+data_columns = [ "Athlete", "Name", "Distance", "Moving time", "Elapsed time", "Elevation gain", "Type", "Workout type", "Date", "id", "Duration" ]
 stat_columns = [ "Timestamp", "Execution time (sec)", "Since last run (hrs)", "Stored activities", "API activities", "Appended", "Appended/New" ]
 
 # Get access token based on client_id, client_secret and refresh_token
@@ -156,29 +148,32 @@ def get_new_activities_from_strava(access_token,club_id,activities):
                     activity_date = datetime.strptime(taglist[0], "%Y-%m-%d")
                     continue
 
-            athlete = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
-            seconds = line['elapsed_time']
-            meters  = line['distance']
+            athlete         = line['athlete']['firstname'] +"#"+ line['athlete']['lastname']
+            seconds_elapsed = line['elapsed_time']
+            meters          = line['distance']
 
             duration = datetime(year=1,month=1,day=1)
 
             # If duration is over 45 minutes and speed is lower than 1 m/s, limit to 45 min and at least 1 m/s
-            if seconds>2700 and seconds>meters:
+            if seconds_elapsed>2700 and seconds_elapsed>meters:
                 duration = duration + timedelta(seconds=max(2700,meters))
             else:
-                duration = duration + timedelta(seconds=seconds)
+                duration = duration + timedelta(seconds=seconds_elapsed)
 
             duration = duration.time()
-
+            # print(line) #debug
             # Assign values to dataframe
             activities.at[counter, 'Athlete']       = athlete
             activities.at[counter, 'Name']          = line['name']
-            activities.at[counter, 'Type']          = line['type']
-            activities.at[counter, 'Elapsed time']  = seconds
             activities.at[counter, 'Distance']      = meters
+            activities.at[counter, 'Moving time']   = line['moving_time']
+            activities.at[counter, 'Elapsed time']  = seconds_elapsed
+            activities.at[counter, 'Elevation gain']= line['total_elevation_gain']
+            activities.at[counter, 'Type']          = line['type']
+            activities.at[counter, 'Workout type']  = line.get('workout_type','na')
             activities.at[counter, 'Date']          = activity_date.replace(hour=0, minute=0, second=0, microsecond=0)
             activities.at[counter, 'id']            = "%s#%s#%s#%s" % ( athlete, 
-                                                                        seconds, 
+                                                                        seconds_elapsed, 
                                                                         meters,
                                                                         activity_date.strftime("%Y-%m-%d"))
             activities.at[counter, 'Duration']      = duration.strftime("%H:%M:%S")
