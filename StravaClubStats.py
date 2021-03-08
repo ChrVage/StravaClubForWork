@@ -1,6 +1,6 @@
 #########################################################
 # Todo:
-#   -Summér tid på klubben og antall Atleter 
+#   -Feil i duration (8/3)
 #   -Kopier viktige filer til en fornuftig plass
 #   -Subset Minutter: Hent antall minutter fra "Duration"
 #   -Lag system for Sykle til jobben
@@ -33,7 +33,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
 
 # Define global variables
-data_columns = [ "Athlete", "Name", "Distance", "Moving time", "Elapsed time", "Elevation gain", "Type", "Workout type", "Date", "id", "Duration" ]
+data_columns = [ "Athlete", "Name", "Distance", "Moving time", "Elapsed time", "Elevation gain", "Type", "Workout type", "Date", "id", "Duration (s)", "Duration" ]
 stat_columns = [ "Timestamp", "Execution time (sec)", "Since last run (hrs)", "Stored activities", "API activities", "Appended", "Appended/New" ]
 
 # Get access token based on client_id, client_secret and refresh_token
@@ -153,16 +153,15 @@ def get_new_activities_from_strava(access_token,club_id,activities):
             seconds_elapsed = line['elapsed_time']
             meters          = line['distance']
 
-            duration = datetime(year=1,month=1,day=1)
+            duration_s = seconds_elapsed
 
             # If duration is over 45 minutes and speed is lower than 1 m/s, limit to 45 min and at least 1 m/s
             if seconds_elapsed>2700 and seconds_elapsed>meters:
-                duration = duration + timedelta(seconds=max(2700,meters))
-            else:
-                duration = duration + timedelta(seconds=seconds_elapsed)
+                duration_s = max(2700,meters)
 
+            duration = datetime(year=1,month=1,day=1) + timedelta(seconds=duration_s)
             duration = duration.time()
-            # print(line) #debug
+            
             # Assign values to dataframe
             activities.at[counter, 'Athlete']       = athlete
             activities.at[counter, 'Name']          = line['name']
@@ -177,6 +176,7 @@ def get_new_activities_from_strava(access_token,club_id,activities):
                                                                         seconds_elapsed, 
                                                                         meters,
                                                                         activity_date.strftime("%Y-%m-%d"))
+            activities.at[counter, 'Duration (s)']  = duration_s
             activities.at[counter, 'Duration']      = duration.strftime("%H:%M:%S")
             
             counter = counter + 1
@@ -267,14 +267,22 @@ def create_subset(df,exclude_athletes):
             subset_stat.at[index_stat,'Moving time']    = subset_df['Moving time'].loc[subset_df['Type']==activity_type].sum()
             subset_stat.at[index_stat,'Elapsed time']   = subset_df['Elapsed time'].loc[subset_df['Type']==activity_type].sum()
             subset_stat.at[index_stat,'Elevation gain'] = subset_df['Elevation gain'].loc[subset_df['Type']==activity_type].sum()
-            # subset_stat.at[index_stat,'Duration']       = subset_df['Duration'].loc[subset_df['Type']==activity_type].sum()
+            subset_stat.at[index_stat,'Duration (s)']   = subset_df['Duration (s)'].loc[subset_df['Type']==activity_type].sum()
         
         subset_stat.at[index_stat+1,'Athlete']        = len(subset_df['Athlete'].drop_duplicates())
         subset_stat.at[index_stat+1,'Distance']       = subset_df['Distance'].sum()
         subset_stat.at[index_stat+1,'Moving time']    = subset_df['Moving time'].sum()
         subset_stat.at[index_stat+1,'Elapsed time']   = subset_df['Elapsed time'].sum()
         subset_stat.at[index_stat+1,'Elevation gain'] = subset_df['Elevation gain'].sum()
-        # subset_stat.at[index_stat+1,'Duration']       = subset_df['Duration'].sum()
+        subset_stat.at[index_stat+1,'Type']           = 'Totalt'
+        subset_stat.at[index_stat+1,'Duration (s)']   = subset_df['Duration (s)'].sum()
+        
+        # Adding a blank row on top
+
+        subset_stat.at[-1,'Athlete'] = ['']
+        #subset_stat.at[-1,'Athlete'] = [data_columns]
+        subset_stat.sort_index(inplace=True)
+
         print(subset_stat)
         print(index_stat)
 
@@ -283,7 +291,6 @@ def create_subset(df,exclude_athletes):
         # Write the new subset to Excel
         write_df_to_excel(file_name, subset_df)
         print("Subset created: %s" % file_name)
-        
 
     # Delete lines for created subsets
     config_subset.drop(index_list,inplace=True)
